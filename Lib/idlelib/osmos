@@ -1,0 +1,85 @@
+import pandas as pd
+import tradingview_ta as tvta
+#Як працює стратегія?
+#Стратегія працює на основі того, що дивергенція між RSI і ADX є ознакою того, що тренд може змінитися. Коли RSI і ADX рухаються в різних напрямках, це означає, що ціна рухається в одному напрямку, а трендовий індекс рухається в іншому. Це може бути ознакою того, що тренд скоро закінчиться.
+#Індикатори, які використовуються в стратегії
+#Стратегія використовує шість індикаторів:
+#**WilliamsR()` - індикатор Уильямса.
+#RSI() - індикатор відносної сили індексу.
+#MACD() - індикатор MACD.
+#ADX() - індикатор середнього направленого руху.
+#CCI() - індикатор конвергенції-дивергенції середніх цін.
+#Stoch() - осцилятор Стоха.
+#Ці індикатори використовуються для визначення того, чи є тренд, і в якому напрямку він рухається.
+#Параметри стратегії
+#periods - загальний період для всіх індикаторів.
+#Функція для перевірки сигналу
+#Функція check_signal() перевіряє сигнал на купівлю або продаж. Вона використовує наступні правила:
+#Всі шість індикаторів дають сигнал на купівлю або продаж.
+#Існує дивергенція між RSI і ADX.
+#Якщо обидва правила виконуються, то функція повертає 1 для сигналу на купівлю або -1 для сигналу на продаж. В іншому випадку функція повертає 0.
+#
+
+# Параметри
+input periodsK = 14
+input periodsD = 3
+input periods = 9
+
+# Індикатори
+WilliamsR = tvta.WilliamsR(data=df, periods=periods)
+RSI = tvta.RSI(data=df, periods=periods)
+MACD = tvta.MACD(data=df, fast_length=12, slow_length=26, signal_length=9)
+ADX = tvta.ADX(data=df, periods=periods)
+CCI = tvta.CCI(data=df, periods=periods)
+Stoch = tvta.StochasticOscillator(data=df, periodsK=14, periodsD=3, periods=9)
+
+# Функція для перевірки сигналу
+def check_signal():
+ # Перевіряємо сигнал на купівлю.
+ if (
+  all(indicator.signal >= 0.7 for indicator in [WilliamsR, RSI, MACD, ADX, CCI, Stoch])
+  and (
+   RSI.divergence()
+  )
+  and (
+   df["Close"] > df["Close"].rolling(window=20).mean()
+  )
+ ):
+  # Відкриваємо угоду на ціні дивергенції
+  open_price = RSI.divergence_start
+  # Фіксуємо угоду на рівні ковзного середнього за 20 періодів
+  close_price = df["Close"].rolling(window=20).mean()
+  return 1
+
+ # Перевіряємо сигнал на продаж.
+ if (
+  all(indicator.signal <= -0.7 for indicator in [WilliamsR, RSI, MACD, ADX, CCI, Stoch])
+  and (
+   RSI.divergence()
+  )
+  and (
+   df["Close"] < df["Close"].rolling(window=20).mean()
+  )
+ ):
+  # Відкриваємо угоду на ціні дивергенції
+  open_price = RSI.divergence_start
+  # Фіксуємо угоду на рівні ковзного середнього за 20 періодів
+  close_price = df["Close"].rolling(window=20).mean()
+  return -1
+
+ # Якщо жоден з індикаторів не дає сигналу, то немає сигналу.
+ return 0
+
+# Основна функція
+def main():
+ # Завантажуємо дані
+ df = pd.read_csv("data.csv")
+
+ # Перевіряємо сигнал
+ signal = check_signal()
+
+ # Візуалізуємо сигнал
+ plot_signal()
+
+if __name__ == "__main__":    
+ main()
